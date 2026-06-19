@@ -1,40 +1,41 @@
-import { Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
-import { z } from 'zod'
-import { prisma } from '../lib/prisma'
-import { signToken } from '../lib/jwt'
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { prisma } from "../lib/prisma";
+import { signToken } from "../lib/jwt";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   cpf: z.string().length(11),
   password: z.string().min(6),
-})
+});
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-})
+});
 
 export async function register(req: Request, res: Response) {
-  const parsed = registerSchema.safeParse(req.body)
+  const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() })
-    return
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
   }
 
-  const { name, email, cpf, password } = parsed.data
+  const { name, email, cpf, password } = parsed.data;
 
   const existing = await prisma.user.findFirst({
     where: { OR: [{ email }, { cpf }] },
-  })
+  });
 
   if (existing) {
-    res.status(409).json({ error: 'E-mail ou CPF já cadastrado' })
-    return
+    res.status(409).json({ error: "E-mail ou CPF já cadastrado" });
+    return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 10)
+  const passwordHash = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
     data: {
@@ -53,37 +54,36 @@ export async function register(req: Request, res: Response) {
         },
       },
     },
-  })
+  });
 
-  const token = signToken({ userId: user.id })
-  res.status(201).json({ token })
+  const token = signToken({ userId: user.id });
+  res.status(201).json({ token });
 }
 
-
 export async function login(req: Request, res: Response) {
-  const parsed = loginSchema.safeParse(req.body)
+  const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() })
-    return
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
   }
 
-  const { email, password } = parsed.data
+  const { email, password } = parsed.data;
 
-  const user = await prisma.user.findUnique({ where: { email } })
+  const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) {
-    res.status(401).json({ error: 'Credenciais inválidas' })
-    return
+    res.status(401).json({ error: "Credenciais inválidas" });
+    return;
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash)
+  const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    res.status(401).json({ error: 'Credenciais inválidas' })
-    return
+    res.status(401).json({ error: "Credenciais inválidas" });
+    return;
   }
 
-  const token = signToken({ userId: user.id })
-  res.json({ token })
+  const token = signToken({ userId: user.id });
+  res.json({ token });
 }
 
 export async function getUsers(req: Request, res: Response) {
@@ -95,6 +95,16 @@ export async function getUsers(req: Request, res: Response) {
         email: true,
         cpf: true,
         createdAt: true,
+        account: {
+          select: {
+            id: true,
+            balance: true,
+            pixKey: true,
+            card: true,
+            sentTransactions: true,
+            receivedTransactions: true,
+          },
+        },
       },
     });
 
@@ -102,4 +112,29 @@ export async function getUsers(req: Request, res: Response) {
   } catch (error) {
     res.status(500).json({ error: "Erro ao buscar usuários" });
   }
+}
+
+export async function me(req: AuthRequest, res: Response) {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      cpf: true,
+      account: {
+        select: {
+          balance: true,
+          pixKey: true,
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    res.status(404).json({ error: "Usuário não encontrado" });
+    return;
+  }
+
+  res.json(user);
 }
