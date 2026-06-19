@@ -5,11 +5,16 @@ import { prisma } from "../lib/prisma";
 import { signToken } from "../lib/jwt";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
+
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   cpf: z.string().length(11),
   password: z.string().min(6),
+  balance: z.number().min(0),
+  pixKey: z.string().min(3),
+  cardLimit: z.number().min(0),
+  cardDueDate: z.string(),
 });
 
 const loginSchema = z.object({
@@ -17,22 +22,38 @@ const loginSchema = z.object({
   password: z.string().min(6),
 });
 
+const pixSchema = z.object({
+  receiverPixKey: z.string().min(3),
+  amount: z.coerce.number().positive(),
+});
+
+
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
+
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
+    return res.status(400).json(parsed.error.flatten());
   }
 
-  const { name, email, cpf, password } = parsed.data;
+  const {
+    name,
+    email,
+    cpf,
+    password,
+    balance,
+    pixKey,
+    cardLimit,
+    cardDueDate,
+  } = parsed.data;
 
   const existing = await prisma.user.findFirst({
-    where: { OR: [{ email }, { cpf }] },
+    where: {
+      OR: [{ email }, { cpf }],
+    },
   });
 
   if (existing) {
-    res.status(409).json({ error: "E-mail ou CPF já cadastrado" });
-    return;
+    return res.status(409).json({ error: "E-mail ou CPF já cadastrado" });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -45,46 +66,66 @@ export async function register(req: Request, res: Response) {
       passwordHash,
       account: {
         create: {
+          balance,
+          pixKey,
           card: {
             create: {
               last4: Math.floor(1000 + Math.random() * 9000).toString(),
-              dueDate: new Date(new Date().setDate(10)),
+              limit: cardLimit,
+              usedLimit: 0,
+              dueDate: new Date(cardDueDate),
+              blocked: false,
             },
           },
+        },
+      },
+    },
+    include: {
+      account: {
+        include: {
+          card: true,
         },
       },
     },
   });
 
   const token = signToken({ userId: user.id });
-  res.status(201).json({ token });
+
+  return res.status(201).json({
+    token,
+    user,
+  });
 }
+
 
 export async function login(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body);
+
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
+    return res.status(400).json(parsed.error.flatten());
   }
 
   const { email, password } = parsed.data;
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
 
   if (!user) {
-    res.status(401).json({ error: "Credenciais inválidas" });
-    return;
+    return res.status(401).json({ error: "Credenciais inválidas" });
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
+
   if (!valid) {
-    res.status(401).json({ error: "Credenciais inválidas" });
-    return;
+    return res.status(401).json({ error: "Credenciais inválidas" });
   }
 
   const token = signToken({ userId: user.id });
-  res.json({ token });
+
+  return res.json({ token });
 }
+
 
 export async function getUsers(req: Request, res: Response) {
   try {
@@ -108,11 +149,13 @@ export async function getUsers(req: Request, res: Response) {
       },
     });
 
-    res.json(users);
+    return res.json(users);
   } catch (error) {
-    res.status(500).json({ error: "Erro ao buscar usuários" });
+    return res.status(500).json({ error: "Erro ao buscar usuários" });
   }
 }
+
+
 
 export async function me(req: AuthRequest, res: Response) {
   const user = await prisma.user.findUnique({
@@ -132,9 +175,73 @@ export async function me(req: AuthRequest, res: Response) {
   });
 
   if (!user) {
-    res.status(404).json({ error: "Usuário não encontrado" });
-    return;
+    return res.status(404).json({ error: "Usuário não encontrado" });
   }
 
-  res.json(user);
+  return res.json(user);
+}
+
+
+export async function sendPix(req: AuthRequest, res: Response) {
+  const parsed = pixSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json(parsed.error.flatten());
+  }
+
+  const { receiverPixKey, amount } = parsed.data;
+
+  const senderId = req.userId;
+
+  if (!senderId) {
+    return res.status(401).json({ error: "Não autenticado" });
+  }
+
+  const sender = await prisma.account.findFirst({
+    where: { userId: senderId },
+  });
+
+  const receiver = await prisma.account.findFirst({
+    where: { pixKey: receiverPixKey },
+  });
+
+  if (!sender || !receiver) {
+    return res.status(404).json({ error: "Conta não encontrada" });
+  }
+
+  if (sender.balance < amount) {
+    return res.status(400).json({ error: "Saldo insuficiente" });
+  }
+
+  await prisma.$transaction([
+    prisma.account.update({
+      where: { id: sender.id },
+      data: {
+        balance: {
+          decrement: amount,
+        },
+      },
+    }),
+    prisma.account.update({
+      where: { id: receiver.id },
+      data: {
+        balance: {
+          increment: amount,
+        },
+      },
+    }),
+    prisma.transaction.create({
+      data: {
+        type: "PIX",
+        amount,
+        senderId: sender.id,
+        receiverId: receiver.id,
+      },
+    }),
+  ]);
+
+  return res.json({
+    success: true,
+    amount,
+  });
 }
