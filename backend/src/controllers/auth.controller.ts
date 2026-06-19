@@ -59,6 +59,7 @@ export async function register(req: Request, res: Response) {
   res.status(201).json({ token })
 }
 
+
 export async function login(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -83,4 +84,22 @@ export async function login(req: Request, res: Response) {
 
   const token = signToken({ userId: user.id })
   res.json({ token })
+}
+
+export async function getUsers(req: Request, res: Response) {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        cpf: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar usuários" });
+  }
 }

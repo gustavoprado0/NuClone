@@ -3,6 +3,7 @@ dotenv.config()
 import express from 'express'
 import cors from 'cors'
 import authRoutes from './routes/auth.routes'
+import usersRoutes from './routes/users.routes'
 
 dotenv.config()
 
@@ -17,6 +18,7 @@ app.get('/health', (_req, res) => {
 })
 
 app.use('/auth', authRoutes)
+app.use(usersRoutes)
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend rodando em http://localhost:${PORT}`)
