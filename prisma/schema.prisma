@@ -38,7 +38,7 @@ model Transaction {
 
   senderId   String?
   receiverId String?
-  sender     Account? @relation("Sender",   fields: [senderId],   references: [id])
+  sender     Account? @relation("Sender", fields: [senderId], references: [id])
   receiver   Account? @relation("Receiver", fields: [receiverId], references: [id])
 }
 
