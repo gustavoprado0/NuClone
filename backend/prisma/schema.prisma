@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  cpf          String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  account Account?
+}
+
+model Account {
+  id      String @id @default(uuid())
+  balance Float  @default(1000.00)
+  pixKey  String @unique @default(uuid())
+  userId  String @unique
+  user    User   @relation(fields: [userId], references: [id])
+
+  sentTransactions     Transaction[] @relation("Sender")
+  receivedTransactions Transaction[] @relation("Receiver")
+  card                 Card?
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  type        String
+  amount      Float
+  description String?
+  createdAt   DateTime @default(now())
+
+  senderId   String?
+  receiverId String?
+  sender     Account? @relation("Sender",   fields: [senderId],   references: [id])
+  receiver   Account? @relation("Receiver", fields: [receiverId], references: [id])
+}
+
+model Card {
+  id        String   @id @default(uuid())
+  last4     String
+  limit     Float    @default(5000.00)
+  usedLimit Float    @default(0.00)
+  dueDate   DateTime
+  blocked   Boolean  @default(false)
+  accountId String   @unique
+  account   Account  @relation(fields: [accountId], references: [id])
+}
