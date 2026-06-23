@@ -14,6 +14,7 @@ import {
   LoginInput,
   RegisterInput,
 } from "@/lib/validations";
+import { Button } from "@/components/ui/button";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -34,11 +35,7 @@ export default function AuthPage() {
   // LOGIN
   async function handleLogin(data: LoginInput) {
     try {
-      console.log("LOGIN DATA:", data);
-
       const res = await api.post("/auth/login", data);
-
-      console.log("LOGIN OK:", res.data);
 
       setToken(res.data.token);
       setUser(res.data.user);
@@ -52,11 +49,7 @@ export default function AuthPage() {
   // REGISTER
   async function handleRegister(data: RegisterInput) {
     try {
-      console.log("REGISTER DATA:", data);
-
       const res = await api.post("/auth/register", data);
-
-      console.log("REGISTER OK:", res.data);
 
       setToken(res.data.token);
       setUser(res.data.user);
@@ -72,126 +65,160 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0b0014] text-white">
-      <div className="w-full max-w-md bg-[#12001f] p-8 rounded-2xl shadow-lg border border-purple-900">
+    <div className="flex min-h-screen items-center justify-center bg-[#820AD1] px-4 py-10">
+      <div className="w-full max-w-sm">
+        {/* Wordmark */}
+        <div className="mb-10 flex justify-center">
+          <span className="text-4xl font-extrabold lowercase tracking-tight text-white">
+            nu<span className="text-[#C9A6E8]">clone</span>
+          </span>
+        </div>
 
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          {isLogin ? "Entrar" : "Criar conta"}
-        </h1>
+        <div className="rounded-[28px] bg-white px-7 py-9 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.35)]">
+          <h1 className="mb-1 text-2xl font-extrabold text-[#1D1929]">
+            {isLogin ? "Olá! Que bom te ver." : "Vamos criar sua conta"}
+          </h1>
+          <p className="mb-7 text-sm text-[#6B6478]">
+            {isLogin
+              ? "Entre com seu e-mail e senha."
+              : "Leva menos de um minuto."}
+          </p>
 
-        {/* 🔐 LOGIN */}
-        {isLogin ? (
-          <form
-            onSubmit={loginForm.handleSubmit(handleLogin)}
-            className="space-y-4"
-          >
-            <div>
-              <input
-                {...loginForm.register("email")}
-                placeholder="Email"
-                className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
+          {isLogin ? (
+            <form
+              onSubmit={loginForm.handleSubmit(handleLogin)}
+              className="space-y-5"
+            >
+              <FloatingField
+                label="E-mail"
+                type="email"
+                registration={loginForm.register("email")}
+                error={loginForm.formState.errors.email?.message}
               />
-              <p className="text-red-400 text-sm">
-                {loginForm.formState.errors.email?.message}
-              </p>
-            </div>
 
-            <div>
-              <input
+              <FloatingField
+                label="Senha"
                 type="password"
-                {...loginForm.register("password")}
-                placeholder="Senha"
-                className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
+                registration={loginForm.register("password")}
+                error={loginForm.formState.errors.password?.message}
               />
-              <p className="text-red-400 text-sm">
-                {loginForm.formState.errors.password?.message}
-              </p>
-            </div>
 
-            <button
-              type="submit"
-              className="w-full p-3 bg-purple-700 hover:bg-purple-600 rounded-lg font-semibold"
+              <Button
+                type="submit"
+                className="mt-2 h-12 w-full rounded-full bg-[#8A05BE] text-base font-semibold text-white hover:bg-[#700A9C] cursor-pointer"
+              >
+                Entrar
+              </Button>
+            </form>
+          ) : (
+            <form
+              onSubmit={registerForm.handleSubmit(handleRegister)}
+              className="space-y-5"
             >
-              Entrar
-            </button>
-          </form>
-        ) : (
-          /* 🧾 REGISTER */
-          <form
-            onSubmit={registerForm.handleSubmit(handleRegister)}
-            className="space-y-4"
-          >
-            <input
-              {...registerForm.register("name")}
-              placeholder="Nome"
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="Nome completo"
+                registration={registerForm.register("name")}
+                error={registerForm.formState.errors.name?.message}
+              />
 
-            <input
-              {...registerForm.register("email")}
-              placeholder="Email"
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="E-mail"
+                type="email"
+                registration={registerForm.register("email")}
+                error={registerForm.formState.errors.email?.message}
+              />
 
-            <input
-              {...registerForm.register("cpf")}
-              placeholder="CPF"
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="CPF"
+                registration={registerForm.register("cpf")}
+                error={registerForm.formState.errors.cpf?.message}
+              />
 
-            <input
-              type="password"
-              {...registerForm.register("password")}
-              placeholder="Senha"
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="Senha"
+                type="password"
+                registration={registerForm.register("password")}
+                error={registerForm.formState.errors.password?.message}
+              />
 
-            <input
-              type="number"
-              {...registerForm.register("balance", { valueAsNumber: true })}
-              placeholder="Saldo inicial"
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="Saldo inicial"
+                type="number"
+                registration={registerForm.register("balance", {
+                  valueAsNumber: true,
+                })}
+                error={registerForm.formState.errors.balance?.message}
+              />
 
-            <input
-              {...registerForm.register("pixKey")}
-              placeholder="Chave PIX"
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="Chave Pix"
+                registration={registerForm.register("pixKey")}
+                error={registerForm.formState.errors.pixKey?.message}
+              />
 
-            <input
-              type="number"
-              {...registerForm.register("cardLimit", { valueAsNumber: true })}
-              placeholder="Limite do cartão"
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="Limite do cartão"
+                type="number"
+                registration={registerForm.register("cardLimit", {
+                  valueAsNumber: true,
+                })}
+                error={registerForm.formState.errors.cardLimit?.message}
+              />
 
-            <input
-              type="date"
-              {...registerForm.register("cardDueDate")}
-              className="w-full p-3 rounded-lg bg-[#1a002b] border border-purple-800"
-            />
+              <FloatingField
+                label="Vencimento do cartão"
+                type="date"
+                registration={registerForm.register("cardDueDate")}
+                error={registerForm.formState.errors.cardDueDate?.message}
+              />
 
-            <button
-              type="submit"
-              className="w-full p-3 bg-purple-700 hover:bg-purple-600 rounded-lg font-semibold"
-            >
-              Criar conta
-            </button>
-          </form>
-        )}
+              <Button
+                type="submit"
+                className="mt-2 h-12 w-full rounded-full bg-[#8A05BE] text-base font-semibold text-white hover:bg-[#700A9C] cursor-pointer"
+              >
+                Criar conta
+              </Button>
+            </form>
+          )}
+        </div>
 
-        {/* TOGGLE */}
-        <p className="text-center text-sm mt-6 text-gray-400">
-          {isLogin ? "Não tem conta?" : "Já tem conta?"}
+        <p className="mt-7 text-center text-sm text-white/80">
+          {isLogin ? "Não tem conta?" : "Já tem conta?"}{" "}
           <button
+            type="button"
             onClick={toggleMode}
-            className="ml-2 text-purple-400 hover:underline"
+            className="font-semibold text-white underline-offset-2 hover:underline cursor-pointer"
           >
             {isLogin ? "Criar agora" : "Fazer login"}
           </button>
         </p>
       </div>
+    </div>
+  );
+}
+
+function FloatingField({
+  label,
+  type = "text",
+  registration,
+  error,
+}: {
+  label: string;
+  type?: string;
+  registration: any;
+  error?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium text-[#6B6478]">
+        {label}
+      </label>
+      <input
+        type={type}
+        {...registration}
+        className="w-full border-b-2 border-[#E8DEF0] bg-transparent pb-2 text-[15px] text-[#1D1929] outline-none transition-colors placeholder:text-[#B8AFC4] focus:border-[#8A05BE]"
+      />
+      {error && <p className="mt-1 text-xs text-[#E5383B]">{error}</p>}
     </div>
   );
 }
